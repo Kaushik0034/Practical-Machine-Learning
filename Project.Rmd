@@ -1,0 +1,131 @@
+---
+title: "Practical Machine Learning Course Project"
+date: "Friday, May 22, 2015"
+---
+
+## Synopsis
+
+This paper is a part of the Coursera project for Practical Machine Learning Course. 
+
+The goal of this project is to predict the manner of performing unilateral dumbbell biceps curls based on data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. The 5 possible methods include -
+
+    A: exactly according to the specification
+    B: throwing the elbows to the front
+    C: lifting the dumbbell only halfway
+    D: lowering the dumbbell only halfway
+    E: throwing the hips to the front
+
+As part of the project , we have been given two datasets - training and testing. While the training datasets will be used to build the model , the testing dataset will be used only once to run the model on it and to predict the classe variables (A-E).
+
+
+## Set up the Required Libraries
+
+Load all the Libraries that will be required for this project.
+
+```{r}
+library(AppliedPredictiveModeling)
+library(caret)
+library(rattle)
+library(rpart.plot)
+library(randomForest)
+library(ggplot2)
+```
+
+
+## Getting the Dataset
+
+Next I downloaded the data in local and read the data into two R datasets - 
+Training & Testing
+
+During reading , if I find any strings like "NA","#DIV/0!","" , I convert all of them to NA . I will later use them to clean up the training dataset.
+
+```{r,warning=FALSE}
+setwd("C:/Users/Kaushik/Documents/Data Science Program/Practical Machine Learning")
+setInternet2(use = TRUE)
+
+training_url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(url=training_url,destfile="./training.csv")
+training<-read.csv("training.csv",header=T,na.strings=c("NA","#DIV/0!",""))
+
+
+testing_url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url=testing_url,destfile="./testing.csv")
+testing<-read.csv("testing.csv",header=T,na.strings=c("NA","#DIV/0!",""))
+```
+
+
+## Set up for Cross Validation
+
+Split the training set into training/test sub-sets. The training sub-set will be used to build the model and then test sub-set will be used for evluating the model (cross validation , estimate out-of-sample error , accuracy etc). 
+
+```{r, warning=FALSE}
+inTrain<-createDataPartition(y=training$classe,p=0.75,list=FALSE)
+train<-training[inTrain,]
+test<-training[-inTrain,]
+dim(train)
+
+```
+
+
+## Cleaning the dataset 
+
+
+```{r, warning=FALSE}
+summary(training)
+
+```
+
+It can be seen that there are many columns in these datasets that are having NA values ; so our first task will be to clean the training dataset ; remove all the predictor columns with NA values . Also the first seven columns in the dataset does not add any value in predicting the classe outcome ; so will remove the first seven columns as well from the training datasets 
+
+
+```{r,warning=FALSE}
+
+NAindex <- apply(train,2,function(x) {sum(is.na(x))}) 
+train<-train[,which(NAindex==0)]
+
+NAindex <- apply(test,2,function(x) {sum(is.na(x))}) 
+test<-test[,which(NAindex==0)]
+
+train = train[,-c(1:7)]
+test = test[,-c(1:7)]
+
+dim(train)
+dim(test)
+
+```
+
+## Model Building
+
+Since the problem is a multi-class classifier problem , I choose random forest as the modeliing method. Random Forest is the most widely used and highly accurate method for problem like this. gbm can also be used with multiple classes if we specify distribution="multinomial" in the train command.  However I get better accurancy with random forest method , so here I am giving only the code that I used for random forest method. 
+
+
+```{r,warning=FALSE}
+set.seed(333)
+n<-names(train)
+f <- as.formula(paste("as.factor(classe) ~", paste(n[!n %in% "classe"], collapse = " + ")))
+model1<-train(f,data=train,method="rf")
+```
+
+## Cross Validation 
+
+Before running the model against the testing datasets , I run the cross validation against the test subsets (that was part of my training data and I had kept aside for the purpose of validating the model)
+
+```{r,warning=FALSE}
+
+predictions<-predict(model1,newdata=test)
+confusionMatrix(predictions,test$classe)
+
+```
+
+From the cross validation on the test sub-set data , our estimation of the out-of-sample error would be <1% and Accuracy is more than 99% . 
+
+## Run the Model on Testing data -Generating answers to the Course Project Submission
+
+Finally I ran the model on the testing datasets (total 20 rows in it) to generate the answers for the Course Project Submission ; After submitting the answers , I could able to predict the classe variable in the testing dataset 100% accurately. 
+
+```{r,warning=FALSE}
+
+predictions<-predict(model1,newdata=testing)
+
+```
+
